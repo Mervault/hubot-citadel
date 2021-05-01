@@ -8,8 +8,6 @@ catch
 http = require 'http'
 fetch = require 'node-fetch'
 
-#Adapter = require('hubot').Adapter
-
 class Citadel extends Adapter
 
   constructor: ->
@@ -28,6 +26,7 @@ class Citadel extends Adapter
       headers = { "Content-Type": "application/json" }
       
       #mystery to solve : which indentation are allowed for body ?
+      #supposedly coffeescript would allow to avoid curly braces...
       body =
         {
           "type": "m.login.password",
@@ -37,7 +36,7 @@ class Citadel extends Adapter
             "address": user
           },
           "password": password,
-          "initial_device_display_name": "Zelda Bot v0.1"
+          "initial_device_display_name": "Zelda Bot v0.2"
         }
 
       fetch("https://#{server}/_matrix/client/r0/login", {
@@ -66,17 +65,42 @@ class Citadel extends Adapter
     password = process.env.HUBOT_MATRIX_PASSWORD
 
     #authenticating to Citadel servers, register device, get access token
-    token = @authenticate(citadelAccessPoint, user, password)
-    @robot.logger.info "token retrieved in main function : #{token}"
-    
-    #authenticating to Matrix servers with the access token
-    #matrixClient = new MatrixClient
+    #asynchroneous call. using `.then` to catch the result of the request
+    @authenticate(citadelAccessPoint, user, password)
+    .then (token) =>
+      @robot.logger.debug "token retrieved inside the promise response : ", token
+      
+      #initialising Matrix client with connexion parameters to Matrix servers with the access token
+      @robot.logger.info 'Initialising Matrix session...'
+      homeServer = "https://#{citadelAccessPoint}"
+      storage = new MemoryStorageProvider()
+      client = new MatrixClient(homeServer, token, storage)
+      
+      #don’t know what this does…
+      AutojoinRoomsMixin.setupOnClient(client)
+      #neither that…
+      client.on('room.message', (roomId, event) => @robot.logger.info "received messaged on room id #{roomId} : #{event}" )
 
-    @emit "connected"
-    userName = new User 1001, name: 'Sample User'
-    message = new TextMessage userName, 'Some Sample Message', 'MSG-001'
-    @robot.receive message
+      #connecting to the Matrix
+      client.start()
+      .then () =>
+        #we’re in ! let’s send an event to the robot engine
+        #(is that really what’s done with the "@emit" ?)
+        @robot.logger.info "bot connected to the Matrix"
+        @emit "connected"
 
+        #let’s forge some fake message as if received from Citadel...
+        userName = new User 1001, name: 'Sample User'
+        message = new TextMessage userName, 'Some Sample Message', 'MSG-001'
+
+        #... and let’s send it to the robot engine
+        @robot.receive message
+
+        #not sure what we’re supposed to do from here.
+        #let’s try to return something to be catched afterward.
+        undefined
+      .then null, (err) =>
+        @robot.logger.debug "error occured", err
 
 exports.use = (robot) ->
   new Citadel robot
