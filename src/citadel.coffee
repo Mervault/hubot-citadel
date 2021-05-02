@@ -57,7 +57,7 @@ class Citadel extends Adapter
       .catch (err) =>
         @robot.logger.error "When fetching server for token, catched following error : #{err}"
         undefined
-      
+
   run: ->
     @robot.logger.info "Run"
     citadelAccessPoint = process.env.HUBOT_MATRIX_HOST_SERVER
@@ -78,8 +78,22 @@ class Citadel extends Adapter
       
       #don’t know what this does…
       AutojoinRoomsMixin.setupOnClient(client)
-      #neither that…
-      client.on('room.message', (roomId, event) => @robot.logger.info "received messaged on room id #{roomId} : #{event}" )
+
+      #TODO figure out how to create message to send to hubot engine
+      #definition of the callback to be used upon event on the rooms.
+      #the callback get the message body and send it to hubot engine
+      #some checks should be done. see examples on https://matrix.org/docs/projects/sdk/matrix-bot-sdk
+      handleCommand = (roomId, event) =>
+        @robot.logger.info event["sender"], " says ", event["content"]["body"]
+        #author = event["sender"]
+        #body = event["content"]["body"]
+        #id = event["event_id"]
+        #message = new TextMessage author, body, id
+        #@robot.receive message
+
+      #registering our callback for events of type "room.message"
+      #see API documentation on https://matrix.org/docs/spec/client_server/latest#room-events
+      client.on('room.message', handleCommand)
 
       #connecting to the Matrix
       client.start()
