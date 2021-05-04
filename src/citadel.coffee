@@ -4,7 +4,7 @@ catch
   prequire = require('parent-require')
   { Robot, Adapter, TextMessage, User } = prequire 'hubot'
 
-{ MatrixClient, MemoryStorageProvider, AutojoinRoomsMixin } = require 'matrix-bot-sdk'
+{ MatrixClient, SimpleFsStorageProvider, AutojoinRoomsMixin } = require 'matrix-bot-sdk'
 http = require 'http'
 fetch = require 'node-fetch'
 
@@ -73,7 +73,7 @@ class Citadel extends Adapter
       #initialising Matrix client with connexion parameters to Matrix servers with the access token
       @robot.logger.info 'Initialising Matrix session...'
       homeServer = "https://#{citadelAccessPoint}"
-      storage = new MemoryStorageProvider()
+      storage = new SimpleFsStorageProvider("zelda-bot-storage.json")
       client = new MatrixClient(homeServer, token, storage)
       
       #don’t know what this does…
