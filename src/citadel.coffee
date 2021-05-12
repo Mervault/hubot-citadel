@@ -15,7 +15,15 @@ class Citadel extends Adapter
     @robot.logger.info "Constructor"
 
   send: (envelope, strings...) ->
-    @robot.logger.info "Send"
+    @robot.logger.info "Send ", envelope.message, " ", envelope.room, " ", envelope.user
+    strings = [].slice.call(arguments, 1)
+    return if (strings.length == 0)
+    @robot.logger.debug "Send this message ", strings[0]
+    # using sendNotice here so that the type of the message is m.notice.
+    # that way, the ’handleCommand’ callback can simply filter out m.notice to avoid
+    # reacting on self posted messages. This is useful as long as the bot is
+    # using the same user id as a human user
+    @client.sendNotice envelope.room, strings[0]
 
   reply: (envelope, strings...) ->
     @robot.logger.info "Reply"
@@ -74,10 +82,10 @@ class Citadel extends Adapter
       @robot.logger.info 'Initialising Matrix session...'
       homeServer = "https://#{citadelAccessPoint}"
       storage = new SimpleFsStorageProvider("zelda-bot-storage.json")
-      client = new MatrixClient(homeServer, token, storage)
+      @client = new MatrixClient(homeServer, token, storage)
       
       #don’t know what this does…
-      AutojoinRoomsMixin.setupOnClient(client)
+      AutojoinRoomsMixin.setupOnClient(@client)
 
       #TODO figure out how to create message to send to hubot engine
       #definition of the callback to be used upon event on the rooms.
@@ -93,22 +101,15 @@ class Citadel extends Adapter
 
       #registering our callback for events of type "room.message"
       #see API documentation on https://matrix.org/docs/spec/client_server/latest#room-events
-      client.on('room.message', handleCommand)
+      @client.on('room.message', handleCommand)
 
       #connecting to the Matrix
-      client.start()
+      @client.start()
       .then () =>
         #we’re in ! let’s send an event to the robot engine
         #(is that really what’s done with the "@emit" ?)
         @robot.logger.info "bot connected to the Matrix"
         @emit "connected"
-
-        #let’s forge some fake message as if received from Citadel...
-        userName = new User 1001, name: 'Sample User'
-        message = new TextMessage userName, 'Some Sample Message', 'MSG-001'
-
-        #... and let’s send it to the robot engine
-        @robot.receive message
 
         #not sure what we’re supposed to do from here.
         #let’s try to return something to be catched afterward.
