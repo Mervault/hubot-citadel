@@ -92,12 +92,17 @@ class Citadel extends Adapter
       #the callback get the message body and send it to hubot engine
       #some checks should be done. see examples on https://matrix.org/docs/projects/sdk/matrix-bot-sdk
       handleCommand = (roomId, event) =>
-        @robot.logger.info event["sender"], " says ", event["content"]["body"]
-        #author = event["sender"]
-        #body = event["content"]["body"]
-        #id = event["event_id"]
-        #message = new TextMessage author, body, id
-        #@robot.receive message
+        @robot.logger.info "received event type ", event["content"]["msgtype"], ": ", event["sender"], " says ", event["content"]["body"]
+        return if !event["content"]
+        return if event["content"]["msgtype"] != "m.text"
+        
+        author = event["sender"]
+        body = event["content"]["body"]
+        id = event["event_id"]
+        message = new TextMessage author, body, id
+        message.room = roomId
+        message.user = author
+        @robot.receive message
 
       #registering our callback for events of type "room.message"
       #see API documentation on https://matrix.org/docs/spec/client_server/latest#room-events
